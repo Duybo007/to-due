@@ -12,6 +12,6 @@ namespace to_due.Models
         public DateTime DueDate { get; set; } = DateTime.Now.AddDays(7);
         public ExpenseClass Recurring { get; set; } = ExpenseClass.None;
         public bool AutoPayment { get; set; } = false;
-        public string Note { get; set;} = "";
+        public string Note { get; set;} = string.Empty;
     }
 }

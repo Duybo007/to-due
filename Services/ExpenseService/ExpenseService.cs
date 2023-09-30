@@ -16,16 +16,23 @@ namespace to_due.Services.ExpenseService
         };
 
         private readonly IMapper _mapper;
-        public ExpenseService(IMapper mapper)
+        private readonly DataContext _context;
+        public ExpenseService(IMapper mapper, DataContext context)
         {
+            _context = context;
             _mapper = mapper;
         }
         
         public async Task<ServiceResponse<List<GetExpenseDto>>> AddExpense(AddExpenseDto newExpense)
         {
             var serviceResponse = new ServiceResponse<List<GetExpenseDto>>();
-            expenses.Add(_mapper.Map<Expense>(newExpense)); //map AddExpenseDto to Expense
-            serviceResponse.Data = expenses.Select(e => _mapper.Map<GetExpenseDto>(e)).ToList();
+            var expense = _mapper.Map<Expense>(newExpense); //map AddExpenseDto to Expense
+
+            _context.Expenses.Add(expense);
+            await _context.SaveChangesAsync();
+
+            serviceResponse.Data = await _context.Expenses.Select(e => _mapper.Map<GetExpenseDto>(e)).ToListAsync();
+
             return serviceResponse;
         }
 
@@ -35,14 +42,16 @@ namespace to_due.Services.ExpenseService
 
             try
             {
-            var expense = expenses.FirstOrDefault(expense => expense.Id == id);
+            // var expense = expenses.FirstOrDefault(expense => expense.Id == id);
+
+            var expense = await _context.Expenses.FirstOrDefaultAsync( e => e.Id == id);
 
             if(expense == null) 
                 throw new Exception($"Expense with ID '{id}' not found.");
 
-            expenses.Remove(expense);
+            _context.Expenses.Remove(expense);
 
-            serviceResponse.Data = expenses.Select(e => _mapper.Map<GetExpenseDto>(e)).ToList();
+            serviceResponse.Data = await _context.Expenses.Select(e => _mapper.Map<GetExpenseDto>(e)).ToListAsync();
     
             }
             catch (Exception ex)
@@ -57,16 +66,18 @@ namespace to_due.Services.ExpenseService
         public async Task<ServiceResponse<List<GetExpenseDto>>> GetAllExpenses()
         {
             var serviceResponse = new ServiceResponse<List<GetExpenseDto>>();
-            serviceResponse.Data = expenses.Select(e => _mapper.Map<GetExpenseDto>(e)).ToList();
+            var dbExpenses = await _context.Expenses.ToListAsync();
+            serviceResponse.Data = dbExpenses.Select(e => _mapper.Map<GetExpenseDto>(e)).ToList();
+
             return serviceResponse;
         }
 
         public async Task<ServiceResponse<GetExpenseDto>> GetExpenseById(Guid ExpenseId)
         {
             var serviceResponse = new ServiceResponse<GetExpenseDto>();
-            var expense = expenses.FirstOrDefault(expense => expense.Id == ExpenseId);
+            var dbExpense = await _context.Expenses.FirstOrDefaultAsync(expense => expense.Id == ExpenseId);
 
-            serviceResponse.Data = _mapper.Map<GetExpenseDto>(expense);//which type the value of expense should be mapped to 
+            serviceResponse.Data = _mapper.Map<GetExpenseDto>(dbExpense);//which type the value of expense should be mapped to 
 
             return serviceResponse;
         }
@@ -77,7 +88,7 @@ namespace to_due.Services.ExpenseService
 
             try
             {
-            var expense = expenses.FirstOrDefault(expense => expense.Id == updatedExpense.Id);
+            var expense = await _context.Expenses.FirstOrDefaultAsync(expense => expense.Id == updatedExpense.Id);
 
             if(expense == null) 
                 throw new Exception($"Expense with ID '{updatedExpense.Id}' not found.");
@@ -88,6 +99,8 @@ namespace to_due.Services.ExpenseService
             expense.AutoPayment = updatedExpense.AutoPayment;
             expense.Note = updatedExpense.Note;
 
+            await _context.SaveChangesAsync();
+            
             serviceResponse.Data = _mapper.Map<GetExpenseDto>(expense);
     
             }
